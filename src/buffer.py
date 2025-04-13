@@ -11,12 +11,8 @@ class Buffer:
     def __setitem__(self, index, value):
         self.lines[index] = value
     
-    def new_line(self):
-        self.lines.append('')
+    def pop(self, index=-1):
+        return self.lines.pop(index)
     
-    def delete_line(self):
-        line = self.lines.pop()
-        self.lines[-1] += line
-    
-    def data(self):
-        return '\n'.join(self.lines).strip()
+    def insert(self, index, value):
+        self.lines.insert(index, value)
