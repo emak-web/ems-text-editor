@@ -1,7 +1,7 @@
 venv/
 
-# Ignore Python cache
 __pycache__/
 
-# Ignore system files
 .DS_Store
+
+text.txt

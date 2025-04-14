@@ -1,17 +1,19 @@
 import curses
+import curses.ascii
 from src.cursor import Cursor
 from src.buffer import Buffer
 
 
 class TextPad:
-    def __init__(self, screen):
+    def __init__(self, screen, filename):
         self.screen = screen
         self.cursor = Cursor()
-        self.buffer = Buffer(['LINE 1', 'This is line 2', 'I am line 3!', ':) line 4'])
 
         self.rows, self.cols = self.screen.getmaxyx()
         self.rows -= 1
         self.cols -= 1
+
+        self.buffer = Buffer(filename=filename, rows=self.rows, cols=self.cols)
 
         self.offset = 3
 
@@ -21,50 +23,44 @@ class TextPad:
 
     def display_buffer(self):
         for line_i in range(len(self.buffer)):
-            self.screen.addstr(line_i, self.offset, self.buffer[line_i])
-    
-    def display_extra_suff(self):
-        for row in range(len(self.buffer)):
-            self.screen.addstr(row, 0, str(row+1), curses.color_pair(1) | curses.A_BOLD)
-
-        self.screen.addstr(self.rows, 0, ' -- Insert -- ', curses.A_BOLD)
+            if line_i > self.rows:
+                break
+            self.screen.addstr(line_i, 0, str(line_i+1+self.buffer.scroll), curses.color_pair(1) | curses.A_BOLD)
+            self.screen.addstr(line_i, self.offset, self.buffer[line_i][:self.cols-self.offset]) # horizontal scroll
     
     def display_cursor(self):
         self.screen.move(self.cursor.row, self.cursor.col+self.offset)
     
     def update(self):
-        self.screen.clear()
+        self.screen.erase()
         self.display_buffer()
-        self.display_extra_suff()
         self.display_cursor()
         self.screen.refresh()
     
     def insert(self, ch):
-        self.buffer[self.cursor.row] = self.buffer[self.cursor.row][:self.cursor.col] + ch + self.buffer[self.cursor.row][self.cursor.col:]
-        self.cursor.right()
+        self.buffer.insert_ch(ch, self.cursor)
     
     def delete(self):
         if self.cursor.col > 0:
-            self.buffer[self.cursor.row] = self.buffer[self.cursor.row][:self.cursor.col-1] + self.buffer[self.cursor.row][self.cursor.col:]
-            self.cursor.left()
+            self.buffer.delete_ch(self.cursor)
 
-        elif self.cursor.row > 0:
-            current_line = self.buffer.pop(self.cursor.row)
-            self.cursor.row -= 1
-            self.cursor.col = len(self.buffer[self.cursor.row])
-            self.buffer[self.cursor.row] += current_line
+        elif self.cursor.row+self.buffer.scroll > 0:
+            self.buffer.delete_line(self.cursor)
 
     def enter(self):
-        new_line = self.buffer[self.cursor.row][self.cursor.col:]
-        self.buffer[self.cursor.row] = self.buffer[self.cursor.row][:self.cursor.col]
-        self.cursor.row += 1
-        self.cursor.col = 0
-        self.buffer.insert(self.cursor.row, new_line)
+        self.buffer.insert_line(self.cursor)
         
     def resize(self):
         self.rows, self.cols = self.screen.getmaxyx()
         self.rows -= 1
         self.cols -= 1
+        self.buffer.rows, self.buffer.cols = self.rows, self.cols
+
+        if self.cursor.col + self.offset > self.cols:
+            self.cursor.col = self.cols - self.offset
+        
+        if self.cursor.row > self.rows:
+            self.cursor.row = self.rows
 
     def run(self):
         while True:
@@ -73,8 +69,11 @@ class TextPad:
 
             if key == 27:                          # Escape
                 break
+                
+            elif key == curses.ascii.ETB:          # CTRL+W
+                self.buffer.save()
              
-            if key == 127:                         # Backspace
+            elif key == 127:                       # Backspace
                 self.delete()
             
             elif key == 10:                        # Enter
@@ -89,12 +88,10 @@ class TextPad:
                     self.cursor.right()
             
             elif key == curses.KEY_UP:
-                if self.cursor.row > 0: 
-                    self.cursor.up(self.buffer)
+                self.buffer.up(self.cursor)
 
             elif key == curses.KEY_DOWN:
-                if self.cursor.row < self.rows and self.cursor.row < len(self.buffer)-1:  
-                    self.cursor.down(self.buffer)
+                self.buffer.down(self.cursor)
                 
             elif key == curses.KEY_RESIZE:
                 self.resize()
