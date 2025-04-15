@@ -1,7 +1,11 @@
 import curses
-import curses.ascii
 from src.cursor import Cursor
 from src.buffer import Buffer
+
+
+NORMAL_MODE = 0
+INSERT_MODE = 1
+COMMAND_MODE = 2
 
 
 class TextPad:
@@ -13,23 +17,50 @@ class TextPad:
         self.rows -= 1
         self.cols -= 1
 
-        self.buffer = Buffer(filename=filename, rows=self.rows, cols=self.cols)
+        self.mode = NORMAL_MODE
 
-        self.offset = 3
+        self.offset_left = 3
+        self.offset_bottom = 1
 
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+        self.buffer = Buffer(filename=filename, rows=self.rows-self.offset_bottom, cols=self.cols-self.offset_left)
+
+        self.command = ''
+        self.info_message = ''
+
+        self.running = True
+
+        curses.use_default_colors()
+
+        # Line numbers
+        curses.init_color(255, *(int(155*3.92), int(162*3.92), int(224*3.92)))
+        curses.init_pair(1, 255, -1)
+
+        # Info messages
+        curses.init_pair(2, curses.COLOR_GREEN, -1)
+
+        # Default black background 
+        curses.init_color(254, *(0, 0, 0))
+        curses.init_pair(3, 254, -1)
         
         self.run()
 
     def display_buffer(self):
         for line_i in range(len(self.buffer)):
-            if line_i > self.rows:
+            if line_i > self.rows-self.offset_bottom:
                 break
             self.screen.addstr(line_i, 0, str(line_i+1+self.buffer.scroll), curses.color_pair(1) | curses.A_BOLD)
-            self.screen.addstr(line_i, self.offset, self.buffer[line_i][:self.cols-self.offset]) # horizontal scroll
+            self.screen.addstr(line_i, self.offset_left, self.buffer[line_i][:self.cols-self.offset_left]) # horizontal scroll
+
+        if self.mode == INSERT_MODE:
+            self.screen.addstr(self.rows, 0, '[ Insert Mode ]', curses.A_BOLD)
+        elif self.mode == COMMAND_MODE:
+            self.screen.addstr(self.rows, 0, '/'+self.command, curses.A_BOLD)
+        
+        if self.info_message:
+            self.screen.addstr(self.rows, 0, self.info_message, curses.color_pair(2))
     
     def display_cursor(self):
-        self.screen.move(self.cursor.row, self.cursor.col+self.offset)
+        self.screen.move(self.cursor.row, self.cursor.col+self.offset_left)
     
     def update(self):
         self.screen.erase()
@@ -56,36 +87,83 @@ class TextPad:
         self.cols -= 1
         self.buffer.rows, self.buffer.cols = self.rows, self.cols
 
-        if self.cursor.col + self.offset > self.cols:
-            self.cursor.col = self.cols - self.offset
+        if self.cursor.col + self.offset_left > self.cols:  # Move cursor if needed
+            self.cursor.col = self.cols - self.offset_left
         
         if self.cursor.row > self.rows:
             self.cursor.row = self.rows
+    
+    def normal_mode_handler(self, key):
+        if key == 27:                           # Escape
+            self.running = False
+        
+        elif key == 105:                        # i
+            self.mode = INSERT_MODE
+        
+        elif key == 47:                         # /
+            self.mode = COMMAND_MODE
+        
+        elif key == 104:                        # h
+            self.cursor.left()
+        
+        elif key == 108:                        # l
+            self.cursor.right(self.buffer)
+        
+        elif key == 107:                        # k
+            self.buffer.up(self.cursor)
+        
+        elif key == 106:                        # j
+            self.buffer.down(self.cursor)
+    
+    def insert_mode_handler(self, key):
+        if key == 27:                           # Escape
+            self.mode = NORMAL_MODE
+        
+        elif key == 127:                        # Backspace
+            self.delete()
+            
+        elif key == 10:                         # Enter
+            self.enter()
+        
+        else:
+            self.insert(chr(key))
+
+    def command_mode_handler(self, key):
+        if key == 27:                           # Escape
+            self.mode = NORMAL_MODE
+            self.command = ''
+        
+        elif key == 10:                         # Enter
+            self.execute_command()
+            self.mode = NORMAL_MODE
+            self.command = ''
+        
+        elif key == 127:                        # Backspace
+            self.command = self.command[:-1]
+
+        else:
+            self.command += chr(key)
+    
+    def execute_command(self):
+        if 'w' in self.command:
+            self.buffer.save()
+            self.info_message = f'Saved to {self.buffer.filename}'
+        
+        if 'q' in self.command:
+            self.running = False
 
     def run(self):
-        while True:
+        while self.running:
             self.update()
             key = self.screen.getch()
 
-            if key == 27:                          # Escape
-                break
-                
-            elif key == curses.ascii.ETB:          # CTRL+W
-                self.buffer.save()
-             
-            elif key == 127:                       # Backspace
-                self.delete()
-            
-            elif key == 10:                        # Enter
-                self.enter()
+            self.info_message = ''
 
-            elif key == curses.KEY_LEFT:
-                if self.cursor.col > 0:
-                    self.cursor.left()
+            if key == curses.KEY_LEFT:    
+                self.cursor.left()
 
-            elif key == curses.KEY_RIGHT:
-                if self.cursor.col < self.cols-self.offset and self.cursor.col < len(self.buffer[self.cursor.row]):
-                    self.cursor.right()
+            elif key == curses.KEY_RIGHT:    
+                self.cursor.right(self.buffer)
             
             elif key == curses.KEY_UP:
                 self.buffer.up(self.cursor)
@@ -96,5 +174,11 @@ class TextPad:
             elif key == curses.KEY_RESIZE:
                 self.resize()
 
-            else:
-                self.insert(chr(key))
+            elif self.mode == NORMAL_MODE:
+                self.normal_mode_handler(key)
+            
+            elif self.mode == INSERT_MODE:
+                self.insert_mode_handler(key)
+            
+            elif self.mode == COMMAND_MODE:
+                self.command_mode_handler(key)

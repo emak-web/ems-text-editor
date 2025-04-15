@@ -4,12 +4,14 @@ class Cursor:
         self.target_col = 0
     
     def left(self):
-        self.col -= 1
-        self.target_col = self.col
+        if self.col > 0:
+            self.col -= 1
+            self.target_col = self.col
 
-    def right(self):
-        self.col += 1
-        self.target_col = self.col
+    def right(self, buffer):
+        if self.col < buffer.cols and self.col < len(buffer[self.row]):
+            self.col += 1
+            self.target_col = self.col
 
     def up(self, buffer):
         self.row -= 1

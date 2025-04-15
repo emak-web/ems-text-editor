@@ -2,10 +2,11 @@ class Buffer:
     def __init__(self, filename, rows=0, cols=0):
         self.lines = []
         self.filename = filename
-        self.load()
         self.rows = rows
         self.cols = cols
         self.scroll = 0
+
+        self.load()
     
     def __len__(self):
         return len(self.lines)-self.scroll
@@ -33,7 +34,6 @@ class Buffer:
                 for line in self.lines:
                     file.write(line+'\n')
                     
-    
     def up(self, cursor):
         if cursor.row > 0:
             cursor.up(self)
@@ -62,7 +62,7 @@ class Buffer:
     
     def insert_ch(self, ch, cursor):
         self[cursor.row] = self[cursor.row][:cursor.col] + ch + self[cursor.row][cursor.col:]
-        cursor.right()
+        cursor.right(self)
     
     def insert_line(self, cursor):
         new_line = self[cursor.row][cursor.col:]
@@ -71,9 +71,10 @@ class Buffer:
         if cursor.row == self.rows:
             self.scroll += 1
         else:
-            cursor.row += 1 # BAD
+            cursor.row += 1 
             
         cursor.col = 0
+        cursor.target_col = cursor.col
         self.insert(cursor.row, new_line)
     
     def delete_ch(self, cursor):
@@ -89,4 +90,5 @@ class Buffer:
             cursor.up(self)
 
         cursor.col = len(self[cursor.row])
+        cursor.target_col = cursor.col
         self[cursor.row] += current_line
