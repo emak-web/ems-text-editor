@@ -33,22 +33,35 @@ class TextPad:
 
         # Line numbers
         curses.init_color(255, *(int(155*3.92), int(162*3.92), int(224*3.92)))
-        curses.init_pair(1, 255, -1)
+        curses.init_color(253, *(int(43*3.92), int(43*3.92), int(43*3.92)))
+        curses.init_pair(1, 255, 253)
 
         # Info messages
         curses.init_pair(2, curses.COLOR_GREEN, -1)
 
         # Default black background 
-        curses.init_color(254, *(0, 0, 0))
-        curses.init_pair(3, 254, -1)
+        # curses.init_color(254, *(0, 0, 0))
+        # curses.init_pair(3, -1, 253)
+        # self.screen.bkgd(' ', curses.color_pair(3))
+        # screen.attrset(curses.color_pair(3))
         
         self.run()
 
     def display_buffer(self):
+        max_line_n = self.buffer.scroll+self.rows-self.offset_bottom+1
+        if len(str(max_line_n)) > 3:
+            self.offset_left = len(str(max_line_n))+1
+        else:
+            self.offset_left = 4
+
         for line_i in range(len(self.buffer)):
             if line_i > self.rows-self.offset_bottom:
                 break
-            self.screen.addstr(line_i, 0, str(line_i+1+self.buffer.scroll), curses.color_pair(1) | curses.A_BOLD)
+
+            line_n = str(line_i+1+self.buffer.scroll)
+            spaces = self.offset_left-len(line_n)-1
+
+            self.screen.addstr(line_i, 0, ' '*spaces+line_n+' ', curses.color_pair(1) | curses.A_BOLD)
             self.screen.addstr(line_i, self.offset_left, self.buffer[line_i][:self.cols-self.offset_left]) # horizontal scroll
 
         if self.mode == INSERT_MODE:
