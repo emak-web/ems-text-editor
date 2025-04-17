@@ -1,6 +1,6 @@
 import curses
 from src.cursor import Cursor
-from src.buffer import Buffer
+from src.gap_buffer import Buffer
 
 
 NORMAL_MODE = 0
@@ -64,6 +64,7 @@ class TextPad:
             self.screen.addstr(line_i, 0, ' '*spaces+line_n+' ', curses.color_pair(1) | curses.A_BOLD)
             self.screen.addstr(line_i, self.offset_left, self.buffer[line_i][:self.cols-self.offset_left]) # horizontal scroll
 
+    def display_ui(self):
         if self.mode == INSERT_MODE:
             self.screen.addstr(self.rows, 0, '[ Insert Mode ]', curses.A_BOLD)
         elif self.mode == COMMAND_MODE:
@@ -78,6 +79,7 @@ class TextPad:
     def update(self):
         self.screen.erase()
         self.display_buffer()
+        self.display_ui()
         self.display_cursor()
         self.screen.refresh()
     
@@ -117,10 +119,10 @@ class TextPad:
             self.mode = COMMAND_MODE
         
         elif key == 104:                        # h
-            self.cursor.left()
+            self.buffer.left(self.cursor)
         
         elif key == 108:                        # l
-            self.cursor.right(self.buffer)
+            self.buffer.right(self.cursor)
         
         elif key == 107:                        # k
             self.buffer.up(self.cursor)
@@ -173,10 +175,10 @@ class TextPad:
             self.info_message = ''
 
             if key == curses.KEY_LEFT:    
-                self.cursor.left()
+                self.buffer.left(self.cursor)
 
             elif key == curses.KEY_RIGHT:    
-                self.cursor.right(self.buffer)
+                self.buffer.right(self.cursor)
             
             elif key == curses.KEY_UP:
                 self.buffer.up(self.cursor)
