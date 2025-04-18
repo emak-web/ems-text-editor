@@ -26,6 +26,7 @@ class TextPad:
 
         self.command = ''
         self.info_message = ''
+        self.show_welcome_screen = not bool(self.buffer)
 
         self.running = True
 
@@ -65,6 +66,24 @@ class TextPad:
             self.screen.addstr(line_i, self.offset_left, self.buffer[line_i][:self.cols-self.offset_left]) # horizontal scroll
 
     def display_ui(self):
+        if self.show_welcome_screen:
+            lines = [
+                'Welcome to EMS text editor',
+                '    ________  ________ ',
+                '   / ____/  |/  / ___/ ',
+                '  / __/ / /|_/ /\__ \  ',
+                ' / /___/ /  / /___/ /  ',
+                '/_____/_/  /_//____/   ',
+                '',
+                '  ESC or /q<Enter>       to exit    ',
+                '  /w<Enter>              to save    ',
+                '  i                      insert mode',
+                '  h j k l                move cursor'
+                
+            ]
+            for i in range(len(lines)):
+                self.screen.addstr((self.rows-len(lines))//2+i, (self.cols-len(lines[i]))//2, lines[i])
+
         if self.mode == INSERT_MODE:
             self.screen.addstr(self.rows, 0, '[ Insert Mode ]', curses.A_BOLD)
         elif self.mode == COMMAND_MODE:
@@ -173,6 +192,7 @@ class TextPad:
             key = self.screen.getch()
 
             self.info_message = ''
+            self.show_welcome_screen = False
 
             if key == curses.KEY_LEFT:    
                 self.buffer.left(self.cursor)

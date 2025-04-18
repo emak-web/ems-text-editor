@@ -17,6 +17,12 @@ class Buffer:
     def __setitem__(self, index, value):
         self.lines[index+self.scroll] = value
     
+    def __bool__(self):
+        if self.lines != ['']:
+            return True
+        else:
+            return False
+    
     def load(self):
         if self.filename:
             try:
@@ -33,6 +39,12 @@ class Buffer:
             with open(self.filename, '+w') as file:
                 for line in self.lines:
                     file.write(line+'\n')
+    
+    def left(self, cursor):
+        cursor.left()
+
+    def right(self, cursor):
+        cursor.right(self)
                     
     def up(self, cursor):
         if cursor.row > 0:

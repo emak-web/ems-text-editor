@@ -83,6 +83,12 @@ class Buffer:
             cur = cur.next
         
         return cur.repr()
+
+    def __bool__(self):
+        if self.lines.value or self.lines.next:
+            return True
+        else:
+            return False
     
     def load(self):
         res = Line()
